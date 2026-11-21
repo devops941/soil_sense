@@ -1,0 +1,377 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Default soil classification thresholds for SoilSense — Madurai District, Tamil Nadu. Version-controlled source of truth; do not edit at runtime.",
+    "generated_note": "Values sourced from TNAU Agritech Soil Rating Chart, ICAR Soil Health Card scheme, IARI Soil Survey Manual 1970, and Rammoorthy & Bajaj (1969). All thresholds are in kg/ha for nutrients. pH is dimensionless.",
+    "sources": [
+      {
+        "name": "TNAU Agritech Soil Rating Chart",
+        "url": "https://agritech.tnau.ac.in/agriculture/agri_soil_soilratingchart.html"
+      },
+      {
+        "name": "ICAR-IISS Bhopal / Soil Health Card",
+        "url": "https://soilhealth.dac.gov.in"
+      },
+      {
+        "name": "IARI Soil Survey Manual 1970",
+        "url": "https://www.scirp.org/reference/referencespapers?referenceid=1101230"
+      },
+      {
+        "name": "Rammoorthy & Bajaj 1969 (Nutrient Index)",
+        "url": "https://iaeme.com/MasterAdmin/Journal_uploads/IJARET/VOLUME_10_ISSUE_6/IJARET_10_06_020.pdf"
+      }
+    ]
+  },
+  "default_standard": "TNAU",
+  "standards": {
+    "TNAU": {
+      "description": "TNAU Agritech Soil Rating Chart (Tamil Nadu Agricultural University, default for Tamil Nadu)",
+      "parameters": {
+        "ph": {
+          "unit": "pH",
+          "test_method": "1:2.5 soil:water suspension, electrometric (pH meter)",
+          "source": "IARI Soil Survey Manual 1970 / ICAR-NBSS&LUP",
+          "classes": [
+            {
+              "label": "extremely_acidic",
+              "lower_bound": null,
+              "upper_bound": 4.5,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "very_strongly_acidic",
+              "lower_bound": 4.5,
+              "upper_bound": 5.0,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "strongly_acidic",
+              "lower_bound": 5.0,
+              "upper_bound": 5.5,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "moderately_acidic",
+              "lower_bound": 5.5,
+              "upper_bound": 6.0,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "slightly_acidic",
+              "lower_bound": 6.0,
+              "upper_bound": 6.5,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "neutral",
+              "lower_bound": 6.5,
+              "upper_bound": 7.3,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "slightly_alkaline",
+              "lower_bound": 7.3,
+              "upper_bound": 7.8,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "moderately_alkaline",
+              "lower_bound": 7.8,
+              "upper_bound": 8.4,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "strongly_alkaline",
+              "lower_bound": 8.4,
+              "upper_bound": 9.0,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "very_strongly_alkaline",
+              "lower_bound": 9.0,
+              "upper_bound": null,
+              "lower_inclusive": true,
+              "upper_inclusive": true
+            }
+          ]
+        },
+        "nitrogen": {
+          "unit": "kg/ha",
+          "test_method": "Alkaline KMnO4 (Subbiah & Asija 1956)",
+          "source": "TNAU Agritech Soil Rating Chart",
+          "classes": [
+            {
+              "label": "low",
+              "lower_bound": null,
+              "upper_bound": 240,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "medium",
+              "lower_bound": 240,
+              "upper_bound": 480,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "high",
+              "lower_bound": 480,
+              "upper_bound": null,
+              "lower_inclusive": true,
+              "upper_inclusive": true
+            }
+          ]
+        },
+        "phosphorus": {
+          "unit": "kg/ha",
+          "test_method": "Olsen (NaHCO3, pH 8.5) — appropriate for neutral/alkaline Madurai soils",
+          "source": "TNAU Agritech Soil Rating Chart",
+          "classes": [
+            {
+              "label": "low",
+              "lower_bound": null,
+              "upper_bound": 11,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "medium",
+              "lower_bound": 11,
+              "upper_bound": 22,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "high",
+              "lower_bound": 22,
+              "upper_bound": null,
+              "lower_inclusive": true,
+              "upper_inclusive": true
+            }
+          ]
+        },
+        "potassium": {
+          "unit": "kg/ha",
+          "test_method": "Neutral Normal Ammonium Acetate",
+          "source": "TNAU Agritech Soil Rating Chart",
+          "classes": [
+            {
+              "label": "low",
+              "lower_bound": null,
+              "upper_bound": 110,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "medium",
+              "lower_bound": 110,
+              "upper_bound": 280,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "high",
+              "lower_bound": 280,
+              "upper_bound": null,
+              "lower_inclusive": true,
+              "upper_inclusive": true
+            }
+          ]
+        }
+      }
+    },
+    "SHC": {
+      "description": "ICAR Soil Health Card (SHC) scheme — ICAR-IISS Bhopal thresholds used in the Government of India Soil Health Card programme",
+      "parameters": {
+        "ph": {
+          "unit": "pH",
+          "test_method": "1:2.5 soil:water suspension, electrometric (pH meter)",
+          "source": "IARI Soil Survey Manual 1970 / ICAR-NBSS&LUP",
+          "classes": [
+            {
+              "label": "extremely_acidic",
+              "lower_bound": null,
+              "upper_bound": 4.5,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "very_strongly_acidic",
+              "lower_bound": 4.5,
+              "upper_bound": 5.0,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "strongly_acidic",
+              "lower_bound": 5.0,
+              "upper_bound": 5.5,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "moderately_acidic",
+              "lower_bound": 5.5,
+              "upper_bound": 6.0,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "slightly_acidic",
+              "lower_bound": 6.0,
+              "upper_bound": 6.5,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "neutral",
+              "lower_bound": 6.5,
+              "upper_bound": 7.3,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "slightly_alkaline",
+              "lower_bound": 7.3,
+              "upper_bound": 7.8,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "moderately_alkaline",
+              "lower_bound": 7.8,
+              "upper_bound": 8.4,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "strongly_alkaline",
+              "lower_bound": 8.4,
+              "upper_bound": 9.0,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "very_strongly_alkaline",
+              "lower_bound": 9.0,
+              "upper_bound": null,
+              "lower_inclusive": true,
+              "upper_inclusive": true
+            }
+          ]
+        },
+        "nitrogen": {
+          "unit": "kg/ha",
+          "test_method": "Alkaline KMnO4 (Subbiah & Asija 1956)",
+          "source": "ICAR-IISS Bhopal / Soil Health Card scheme",
+          "classes": [
+            {
+              "label": "low",
+              "lower_bound": null,
+              "upper_bound": 280,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "medium",
+              "lower_bound": 280,
+              "upper_bound": 560,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "high",
+              "lower_bound": 560,
+              "upper_bound": null,
+              "lower_inclusive": true,
+              "upper_inclusive": true
+            }
+          ]
+        },
+        "phosphorus": {
+          "unit": "kg/ha",
+          "test_method": "Olsen (NaHCO3, pH 8.5)",
+          "source": "ICAR-IISS Bhopal / Soil Health Card scheme",
+          "classes": [
+            {
+              "label": "low",
+              "lower_bound": null,
+              "upper_bound": 10,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "medium",
+              "lower_bound": 10,
+              "upper_bound": 25,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "high",
+              "lower_bound": 25,
+              "upper_bound": null,
+              "lower_inclusive": true,
+              "upper_inclusive": true
+            }
+          ]
+        },
+        "potassium": {
+          "unit": "kg/ha",
+          "test_method": "Neutral Normal Ammonium Acetate",
+          "source": "ICAR-IISS Bhopal / Soil Health Card scheme",
+          "classes": [
+            {
+              "label": "low",
+              "lower_bound": null,
+              "upper_bound": 108,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "medium",
+              "lower_bound": 108,
+              "upper_bound": 280,
+              "lower_inclusive": true,
+              "upper_inclusive": false
+            },
+            {
+              "label": "high",
+              "lower_bound": 280,
+              "upper_bound": null,
+              "lower_inclusive": true,
+              "upper_inclusive": true
+            }
+          ]
+        }
+      }
+    }
+  },
+  "nutrient_index": {
+    "description": "Nutrient Index (NI) is computed separately for each of N, P, and K across a set of soil samples from a field or survey unit.",
+    "formula": "NI = (1*n_low + 2*n_medium + 3*n_high) / n_total",
+    "formula_variables": {
+      "n_low": "count of samples classified as Low for the nutrient",
+      "n_medium": "count of samples classified as Medium for the nutrient",
+      "n_high": "count of samples classified as High for the nutrient",
+      "n_total": "total number of samples in the set"
+    },
+    "cutoffs": {
+      "low": "< 1.67",
+      "medium": "1.67 - 2.33",
+      "high": "> 2.33"
+    },
+    "source": "Parker (1951); Rammoorthy & Bajaj (1969), Fertilizer News 14(8):24-26",
+    "note": "No ICAR-prescribed single composite per-sample fertility score exists; N, P, K reported as three separate indices."
+  }
+}

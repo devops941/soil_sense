@@ -1,0 +1,3 @@
+sample_code,location_name,district,sample_date,depth_cm,land_use,collector_name,ph,ph_method,nitrogen_kg_ha,nitrogen_method,phosphorus_kg_ha,phosphorus_method,potassium_kg_ha,potassium_method,notes
+TMPL-001,Melur Block,Madurai,2024-03-15,0-20,Agricultural (Paddy),A. Krishnamurthy,7.6,1:2.5 soil:water suspension electrometric (pH meter),180,Alkaline KMnO4 (Subbiah & Asija 1956),12,Olsen (NaHCO3 pH 8.5),150,Neutral Normal Ammonium Acetate,EXAMPLE ROW - replace
+TMPL-002,Vadipatti Block,Madurai,2024-06-20,0-20,Agricultural (Cotton),S. Palaniswami,8.1,1:2.5 soil:water suspension electrometric (pH meter),260,Alkaline KMnO4 (Subbiah & Asija 1956),20,Olsen (NaHCO3 pH 8.5),320,Neutral Normal Ammonium Acetate,EXAMPLE ROW - replace
