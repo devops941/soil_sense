@@ -8,11 +8,14 @@ import {
   FileCheck,
   AlertTriangle,
   ArrowRight,
+  Copy,
+  XCircle,
 } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function UploadView({ onNavigate }) {
   const [file, setFile] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [dataSource, setDataSource] = useState('verified');
   const [locationName, setLocationName] = useState('');
   const [validating, setValidating] = useState(false);
@@ -28,6 +31,32 @@ export default function UploadView({ onNavigate }) {
       setValidationReport(null);
       setUploadSuccess(null);
       setError(null);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const droppedFile = e.dataTransfer.files[0];
+      if (droppedFile.name.endsWith('.csv')) {
+        setFile(droppedFile);
+        setValidationReport(null);
+        setUploadSuccess(null);
+        setError(null);
+      } else {
+        setError('Please drop a valid .csv file.');
+      }
     }
   };
 
@@ -60,6 +89,13 @@ export default function UploadView({ onNavigate }) {
     }
   };
 
+  const summary = uploadSuccess?.summary || {
+    total_rows: uploadSuccess?.batch?.total_rows || 0,
+    successful_records: uploadSuccess?.batch?.valid_rows || 0,
+    duplicate_records: 0,
+    failed_records: uploadSuccess?.batch?.error_rows || 0,
+  };
+
   return (
     <div style={{ maxWidth: '920px', margin: '0 auto' }}>
       {/* Title */}
@@ -73,7 +109,17 @@ export default function UploadView({ onNavigate }) {
       </div>
 
       {/* Template Download Card */}
-      <div className="card" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#faf5ef', border: '1px solid #ebdcd0' }}>
+      <div
+        className="card"
+        style={{
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: '#faf5ef',
+          border: '1px solid #ebdcd0',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{ padding: '10px', backgroundColor: '#faf3eb', borderRadius: '10px', color: '#7c3f1d' }}>
             <FileSpreadsheet size={24} />
@@ -98,7 +144,7 @@ export default function UploadView({ onNavigate }) {
       </div>
 
       {error && (
-        <div className="alert alert-danger">
+        <div className="alert alert-danger" style={{ marginBottom: '20px' }}>
           <AlertCircle size={18} />
           <div>{error}</div>
         </div>
@@ -110,16 +156,19 @@ export default function UploadView({ onNavigate }) {
 
         <div
           style={{
-            border: '2px dashed #cbd5e1',
+            border: isDragging ? '2px dashed #1e40af' : '2px dashed #cbd5e1',
             borderRadius: '12px',
             padding: '36px 20px',
             textAlign: 'center',
-            backgroundColor: file ? '#f0fdf4' : '#fafafa',
+            backgroundColor: isDragging ? '#eff6ff' : file ? '#f0fdf4' : '#fafafa',
             cursor: 'pointer',
             marginBottom: '20px',
-            transition: 'background-color 0.2s',
+            transition: 'all 0.2s ease',
           }}
           onClick={() => document.getElementById('csv-file-input').click()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
           <input
             id="csv-file-input"
@@ -128,25 +177,32 @@ export default function UploadView({ onNavigate }) {
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
-          <div style={{ display: 'flex', justifyContent: 'center', color: file ? '#15803d' : '#1e40af', marginBottom: '12px' }}>
-            <UploadCloud size={40} />
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              color: file ? '#15803d' : '#1e40af',
+              marginBottom: '12px',
+            }}
+          >
+            <UploadCloud size={44} />
           </div>
           {file ? (
             <div>
-              <div style={{ fontWeight: 700, fontSize: '1rem', color: '#15803d' }}>
+              <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#15803d' }}>
                 {file.name} ({(file.size / 1024).toFixed(1)} KB)
               </div>
               <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '4px' }}>
-                Click to choose a different CSV file
+                Click or drag another file to replace
               </div>
             </div>
           ) : (
             <div>
               <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>
-                Click to browse or drop your CSV file here
+                Drag and drop your CSV file here, or click to browse
               </div>
               <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '4px' }}>
-                Maximum size: 10MB • Must be formatted as UTF-8 CSV
+                Supports standard comma-separated soil sample datasets • Max 10MB
               </div>
             </div>
           )}
@@ -190,7 +246,7 @@ export default function UploadView({ onNavigate }) {
             onClick={handleValidateOnly}
           >
             {validating ? <span className="spinner spinner-primary" /> : <FileCheck size={16} />}
-            Validate Only
+            Validate CSV
           </button>
           <button
             type="button"
@@ -204,24 +260,116 @@ export default function UploadView({ onNavigate }) {
         </div>
       </div>
 
-      {/* Ingestion Success Banner */}
+      {/* Ingestion Result Summary Banner */}
       {uploadSuccess && (
-        <div className="alert alert-success" style={{ marginBottom: '24px' }}>
-          <CheckCircle2 size={20} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
-              Dataset Ingestion Complete!
+        <div
+          className="card"
+          style={{
+            marginBottom: '24px',
+            backgroundColor: summary.successful_records > 0 ? '#f0fdf4' : '#fef2f2',
+            border: `1px solid ${summary.successful_records > 0 ? '#bbf7d0' : '#fecaca'}`,
+            padding: '20px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+            {summary.successful_records > 0 ? (
+              <CheckCircle2 size={26} color="#15803d" />
+            ) : (
+              <XCircle size={26} color="#dc2626" />
+            )}
+            <div>
+              <h3
+                style={{
+                  fontSize: '1.15rem',
+                  fontWeight: 800,
+                  color: summary.successful_records > 0 ? '#15803d' : '#dc2626',
+                  margin: 0,
+                }}
+              >
+                {summary.successful_records > 0 ? 'Dataset Ingestion Complete!' : 'Dataset Ingestion Failed'}
+              </h3>
+              <p style={{ margin: '3px 0 0', fontSize: '0.85rem', color: '#475569' }}>
+                Batch UUID: <code style={{ fontWeight: 600 }}>{uploadSuccess.batch.uuid}</code>
+              </p>
             </div>
-            <p style={{ marginTop: '2px' }}>
-              Batch ID: <code>{uploadSuccess.batch.uuid}</code> • Successfully ingested{' '}
-              <strong>{uploadSuccess.batch.valid_rows}</strong> valid soil samples.
-            </p>
+          </div>
+
+          {/* Record Ingestion Statistics Grid */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+              gap: '12px',
+              marginBottom: '18px',
+            }}
+          >
+            <div
+              style={{
+                padding: '12px',
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '0.74rem', color: '#64748b', fontWeight: 600 }}>TOTAL ROWS</div>
+              <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#0f172a' }}>
+                {summary.total_rows}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '12px',
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                border: '1px solid #bbf7d0',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '0.74rem', color: '#15803d', fontWeight: 600 }}>SAVED TO DB</div>
+              <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#15803d' }}>
+                {summary.successful_records}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '12px',
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                border: '1px solid #fef08a',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '0.74rem', color: '#b45309', fontWeight: 600 }}>DUPLICATES SKIPPED</div>
+              <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#b45309' }}>
+                {summary.duplicate_records}
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: '12px',
+                backgroundColor: '#ffffff',
+                borderRadius: '8px',
+                border: '1px solid #fecaca',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ fontSize: '0.74rem', color: '#dc2626', fontWeight: 600 }}>ERRORS / FAILED</div>
+              <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#dc2626' }}>
+                {summary.failed_records}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <button
-              className="btn btn-primary btn-sm"
-              style={{ marginTop: '10px' }}
+              className="btn btn-primary"
               onClick={() => onNavigate('samples')}
             >
-              View Samples in Explorer <ArrowRight size={14} />
+              View Samples in Explorer <ArrowRight size={15} />
             </button>
           </div>
         </div>
@@ -260,7 +408,7 @@ export default function UploadView({ onNavigate }) {
           {validationReport.errors && validationReport.errors.length > 0 && (
             <div>
               <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#dc2626', marginBottom: '8px' }}>
-                Validation Errors (Rows will be skipped or rejected)
+                Validation Errors (Rows rejected or skipped)
               </h4>
               <div className="table-container" style={{ marginBottom: '16px' }}>
                 <table className="table">
@@ -275,7 +423,7 @@ export default function UploadView({ onNavigate }) {
                     {validationReport.errors.map((err, i) => (
                       <tr key={i}>
                         <td style={{ fontWeight: 600 }}>{err.row !== null ? `Row ${err.row}` : 'Header'}</td>
-                        <td style={{ fontFamily: 'monospace', color: '#1e40af' }}>{err.column}</td>
+                        <td style={{ fontFamily: 'monospace', color: '#1e40af' }}>{err.column || 'General'}</td>
                         <td style={{ color: '#dc2626' }}>{err.message}</td>
                       </tr>
                     ))}
@@ -289,7 +437,7 @@ export default function UploadView({ onNavigate }) {
           {validationReport.warnings && validationReport.warnings.length > 0 && (
             <div>
               <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#d97706', marginBottom: '8px' }}>
-                Validation Warnings (Non-fatal)
+                Validation Warnings & Notices (Duplicate / Non-fatal)
               </h4>
               <div className="table-container">
                 <table className="table">
@@ -304,7 +452,7 @@ export default function UploadView({ onNavigate }) {
                     {validationReport.warnings.map((w, i) => (
                       <tr key={i}>
                         <td style={{ fontWeight: 600 }}>{w.row !== null ? `Row ${w.row}` : 'File'}</td>
-                        <td style={{ fontFamily: 'monospace', color: '#475569' }}>{w.column}</td>
+                        <td style={{ fontFamily: 'monospace', color: '#475569' }}>{w.column || 'General'}</td>
                         <td style={{ color: '#92400e' }}>{w.message}</td>
                       </tr>
                     ))}

@@ -74,7 +74,7 @@ async def upload_csv(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     file_bytes = await file.read()
-    batch, report = upload_service.ingest_csv(
+    batch, report, summary = upload_service.ingest_csv(
         db,
         file_bytes=file_bytes,
         filename=file.filename or "upload.csv",
@@ -84,6 +84,7 @@ async def upload_csv(
     return {
         "batch": UploadBatchRead.model_validate(batch).model_dump(),
         "validation_report": report.model_dump(),
+        "summary": summary,
     }
 
 

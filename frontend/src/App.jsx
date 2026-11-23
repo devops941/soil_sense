@@ -8,7 +8,6 @@ import ManualEntryView from './views/ManualEntryView';
 import UploadView from './views/UploadView';
 import AnalyticsView from './views/AnalyticsView';
 import ReportsView from './views/ReportsView';
-import ThresholdsView from './views/ThresholdsView';
 import { api } from './services/api';
 
 export default function App() {
@@ -95,8 +94,6 @@ export default function App() {
             onDownloadSamplePdf={handleDownloadSamplePdf}
           />
         );
-      case 'thresholds':
-        return <ThresholdsView />;
       default:
         return (
           <LandingPageView

@@ -43,9 +43,14 @@ def _build_parameter_values(
     parameters: List[Any],
 ) -> None:
     for param_in in parameters:
+        code = param_in.parameter_code if hasattr(param_in, "parameter_code") else param_in.get("parameter_code")
+        value = param_in.value if hasattr(param_in, "value") else param_in.get("value")
+        unit = param_in.unit if hasattr(param_in, "unit") else param_in.get("unit", "")
+        test_method = param_in.test_method if hasattr(param_in, "test_method") else param_in.get("test_method", "standard")
+
         param_def = (
             db.query(ParameterDefinition)
-            .filter(ParameterDefinition.code == param_in.parameter_code)
+            .filter(ParameterDefinition.code == code)
             .first()
         )
         if param_def is None:
@@ -53,9 +58,9 @@ def _build_parameter_values(
         pv = SoilParameterValue(
             sample_id=sample.id,
             parameter_def_id=param_def.id,
-            value=param_in.value,
-            unit=param_in.unit,
-            test_method=param_in.test_method,
+            value=float(value),
+            unit=unit or param_def.default_unit,
+            test_method=test_method or "standard",
         )
         db.add(pv)
 
@@ -160,8 +165,47 @@ def update_sample(db: Session, sample_id: int, sample_in: SampleUpdate) -> SoilS
         if existing:
             raise DuplicateError(f"Sample with code '{update_data['sample_code']}' already exists.")
 
+    # Location updates
+    location_id = update_data.pop("location_id", None)
+    location_name = update_data.pop("location_name", None)
+    district = update_data.pop("district", "Madurai")
+    taluk_block = update_data.pop("taluk_block", None)
+    village = update_data.pop("village", None)
+
+    if location_name or taluk_block or village:
+        loc_name = location_name or (f"{village}, {taluk_block}" if village and taluk_block else (village or taluk_block))
+        new_loc_id = _resolve_or_create_location(
+            db,
+            location_id=location_id,
+            location_name=loc_name,
+            district=district or "Madurai",
+            taluk_block=taluk_block,
+            village=village,
+        )
+        if new_loc_id:
+            sample.location_id = new_loc_id
+    elif location_id is not None:
+        sample.location_id = location_id
+
+    # Parameter values updates
+    parameters = update_data.pop("parameters", None)
+    if parameters is not None:
+        db.query(SoilParameterValue).filter(SoilParameterValue.sample_id == sample.id).delete()
+        db.flush()
+        _build_parameter_values(db, sample, parameters)
+        db.flush()
+
     for field, value in update_data.items():
-        setattr(sample, field, value)
+        if hasattr(sample, field):
+            setattr(sample, field, value)
+
+    db.flush()
+
+    # Re-run fertility classification whenever sample is updated
+    try:
+        classification_service.classify_and_store(db, sample)
+    except Exception:
+        pass
 
     db.commit()
     db.refresh(sample)

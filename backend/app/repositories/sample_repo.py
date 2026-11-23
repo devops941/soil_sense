@@ -37,25 +37,35 @@ class SampleRepository(BaseRepository[SoilSample]):
             query = query.filter(SoilSample.is_deleted == False)  # noqa: E712
 
         if location_id is not None:
-            query = query.filter(SoilSample.location_id == location_id)
+            try:
+                loc_int = int(location_id)
+                if loc_int > 0:
+                    query = query.filter(SoilSample.location_id == loc_int)
+            except (ValueError, TypeError):
+                pass
+
         if date_from is not None:
             query = query.filter(SoilSample.sample_date >= date_from)
         if date_to is not None:
             query = query.filter(SoilSample.sample_date <= date_to)
-        if data_source is not None:
-            query = query.filter(SoilSample.data_source == data_source)
-        if fertility_class is not None:
+
+        if data_source and str(data_source).strip() and str(data_source).strip().lower() != "all":
+            query = query.filter(SoilSample.data_source == str(data_source).strip())
+
+        if fertility_class and str(fertility_class).strip() and str(fertility_class).strip().lower() != "all":
+            clean_fert = str(fertility_class).strip()
             query = query.join(
                 ClassificationResult,
                 ClassificationResult.sample_id == SoilSample.id,
             ).filter(
                 or_(
-                    ClassificationResult.fertility_class.ilike(fertility_class),
-                    ClassificationResult.overall_status.ilike(f"%{fertility_class}%"),
+                    ClassificationResult.fertility_class.ilike(clean_fert),
+                    ClassificationResult.overall_status.ilike(f"%{clean_fert}%"),
                 )
             )
-        if search:
-            search_term = f"%{search.strip()}%"
+
+        if search and str(search).strip():
+            search_term = f"%{str(search).strip()}%"
             query = query.outerjoin(Location, SoilSample.location_id == Location.id).filter(
                 or_(
                     SoilSample.sample_code.ilike(search_term),

@@ -57,6 +57,12 @@ export const api = {
       body: JSON.stringify(sampleData),
     }),
 
+  updateSample: (id, sampleData) =>
+    request(`/samples/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(sampleData),
+    }),
+
   deleteSample: (id) =>
     request(`/samples/${id}`, {
       method: "DELETE",

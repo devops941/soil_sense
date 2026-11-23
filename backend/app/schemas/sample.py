@@ -84,12 +84,31 @@ class SampleCreate(BaseModel):
 class SampleUpdate(BaseModel):
     sample_code: Optional[str] = None
     location_id: Optional[int] = None
+    location_name: Optional[str] = None
+    district: Optional[str] = "Madurai"
+    taluk_block: Optional[str] = None
+    village: Optional[str] = None
     sample_date: Optional[date] = None
     depth_cm: Optional[float] = None
     land_use: Optional[str] = None
     collector_name: Optional[str] = None
     notes: Optional[str] = None
     data_source: Optional[str] = None
+    parameters: Optional[List[ParameterValueIn]] = None
+
+    @field_validator("parameters")
+    @classmethod
+    def validate_parameters(cls, params: Optional[List[ParameterValueIn]]) -> Optional[List[ParameterValueIn]]:
+        if params is None:
+            return None
+        for param in params:
+            if param.parameter_code == "ph":
+                if not (0.0 <= param.value <= 14.0):
+                    raise ValueError(f"pH value {param.value} is out of range [0, 14].")
+            else:
+                if param.value < 0:
+                    raise ValueError(f"Nutrient value for '{param.parameter_code}' must be >= 0.")
+        return params
 
 
 class SampleRead(BaseModel):

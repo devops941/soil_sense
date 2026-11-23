@@ -286,6 +286,8 @@ def classify_and_store(
         )
         db.add(result_row)
 
-    db.commit()
-    db.refresh(result_row)
+    db.flush()
+    if not db.in_nested_transaction():
+        db.commit()
+        db.refresh(result_row)
     return result_row

@@ -4,7 +4,7 @@ import json
 import os
 import uuid as uuid_lib
 from datetime import date
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 from sqlalchemy.orm import Session
@@ -12,13 +12,14 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.exceptions import ValidationError as SoilValidationError
 from app.models.parameter import ParameterDefinition
-from app.models.sample import SoilSample
+from app.models.sample import SoilParameterValue, SoilSample
 from app.models.upload_batch import UploadBatch
 from app.repositories.upload_repo import UploadRepository
 from app.schemas.sample import ParameterValueIn, SampleCreate
-from app.schemas.upload import UploadBatchRead, ValidationReport
+from app.schemas.upload import UploadBatchRead, ValidationIssue, ValidationReport
 from app.services import classification_service, validation_service
-from app.services.sample_service import create_sample
+from app.services.sample_service import _build_parameter_values, create_sample
+from app.services.validation_service import normalize_dataframe_columns, parse_depth
 
 _CSV_COL_TO_PARAM: dict = {
     "ph": "ph",
@@ -35,7 +36,7 @@ _CSV_COL_TO_METHOD: dict = {
 }
 
 _PARAM_DEFAULT_UNIT: dict = {
-    "ph": "pH units",
+    "ph": "pH",
     "nitrogen": "kg/ha",
     "phosphorus": "kg/ha",
     "potassium": "kg/ha",
@@ -49,27 +50,46 @@ def _get_param_bounds(db: Session) -> dict:
     return bounds
 
 
-def _row_to_sample_create(row: pd.Series, data_source: str, batch_id: int, location_name_override: Optional[str] = None) -> Optional[SampleCreate]:
+def _row_to_sample_create(
+    row: pd.Series,
+    data_source: str,
+    batch_id: int,
+    location_name_override: Optional[str] = None,
+) -> Optional[SampleCreate]:
     try:
-        sample_code = str(row["sample_code"]).strip()
-        loc_name = location_name_override or (str(row["location_name"]).strip() if "location_name" in row and pd.notna(row["location_name"]) else None)
-        sample_date_raw = row.get("sample_date")
-        sample_date = pd.to_datetime(str(sample_date_raw)).date()
+        sample_code = str(row.get("sample_code", "")).strip()
+        if not sample_code:
+            return None
 
-        depth_cm = None
-        if "depth_cm" in row and pd.notna(row["depth_cm"]):
-            try:
-                depth_cm = float(row["depth_cm"])
-            except (ValueError, TypeError):
-                depth_cm = None
+        # Resolve location details
+        loc_name = location_name_override
+        if not loc_name and "location_name" in row and pd.notna(row["location_name"]):
+            loc_name = str(row["location_name"]).strip()
 
-        land_use = str(row["land_use"]).strip() if "land_use" in row and pd.notna(row["land_use"]) else None
-        collector_name = str(row["collector_name"]).strip() if "collector_name" in row and pd.notna(row["collector_name"]) else None
-        notes = str(row["notes"]).strip() if "notes" in row and pd.notna(row["notes"]) else None
-
-        district = str(row.get("district", "Madurai")).strip()
         taluk_block = str(row["taluk_block"]).strip() if "taluk_block" in row and pd.notna(row["taluk_block"]) else None
         village = str(row["village"]).strip() if "village" in row and pd.notna(row["village"]) else None
+        district = str(row.get("district", "Madurai")).strip() or "Madurai"
+
+        if not loc_name:
+            loc_name = taluk_block or village or "Melur"
+
+        # Resolve date
+        sample_date_raw = row.get("sample_date")
+        if pd.notna(sample_date_raw) and str(sample_date_raw).strip():
+            try:
+                sample_date = pd.to_datetime(str(sample_date_raw)).date()
+            except Exception:
+                sample_date = date.today()
+        else:
+            sample_date = date.today()
+
+        depth_cm = parse_depth(row.get("depth_cm"))
+        if depth_cm is None:
+            depth_cm = 20.0
+
+        land_use = str(row["land_use"]).strip() if "land_use" in row and pd.notna(row["land_use"]) else "Agricultural"
+        collector_name = str(row["collector_name"]).strip() if "collector_name" in row and pd.notna(row["collector_name"]) else "Field Officer"
+        notes = str(row["notes"]).strip() if "notes" in row and pd.notna(row["notes"]) else None
 
         parameters: List[ParameterValueIn] = []
         for csv_col, param_code in _CSV_COL_TO_PARAM.items():
@@ -81,7 +101,7 @@ def _row_to_sample_create(row: pd.Series, data_source: str, batch_id: int, locat
                 continue
 
             method_col = _CSV_COL_TO_METHOD.get(csv_col, "")
-            method = "standard"
+            method = "Standard Laboratory Method"
             if method_col and method_col in row and pd.notna(row[method_col]):
                 method = str(row[method_col]).strip()
 
@@ -122,7 +142,7 @@ def ingest_csv(
     filename: str,
     data_source: str = "verified",
     location_name: Optional[str] = None,
-) -> Tuple[UploadBatch, ValidationReport]:
+) -> Tuple[UploadBatch, ValidationReport, Dict[str, int]]:
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     batch_uuid = str(uuid_lib.uuid4())
     file_path = os.path.join(settings.UPLOAD_DIR, f"{batch_uuid}.csv")
@@ -133,56 +153,60 @@ def ingest_csv(
     try:
         df = pd.read_csv(file_path)
     except Exception as exc:
-        # Unreadable CSV — clean up and raise
-        os.remove(file_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)
         raise SoilValidationError(f"Could not parse CSV file: {exc}") from exc
 
+    df = normalize_dataframe_columns(df)
     param_bounds = _get_param_bounds(db)
     report = validation_service.validate_dataframe(df, param_bounds=param_bounds)
 
-    all_invalid = report.valid_rows == 0
+    successful_count = 0
+    duplicate_count = 0
+    failed_count = 0
 
     batch = UploadBatch(
         uuid=batch_uuid,
         original_filename=filename,
         file_path=file_path,
-        total_rows=report.total_rows,
-        valid_rows=report.valid_rows,
+        total_rows=len(df),
+        valid_rows=0,
         error_rows=report.error_rows,
-        status="failed" if all_invalid else "completed",
+        status="processing",
         validation_report=report.model_dump_json(),
         data_source=data_source,
     )
     db.add(batch)
     db.flush()
 
-    if not all_invalid:
-        clean_df, _ = validation_service.clean_dataframe(df)
-        for _, row in clean_df.iterrows():
+    if report.valid_rows > 0:
+        clean_df, _ = validation_service.clean_dataframe(df, param_bounds=param_bounds)
+        seen_batch_codes: set[str] = set()
+
+        for idx, row in clean_df.iterrows():
             sample_create = _row_to_sample_create(row, data_source, batch.id, location_name)
             if sample_create is None:
+                failed_count += 1
                 continue
+
+            # Check duplicate in current batch
+            if sample_create.sample_code in seen_batch_codes:
+                duplicate_count += 1
+                report.warnings.append(
+                    ValidationIssue(
+                        row=int(idx) + 2,
+                        column="sample_code",
+                        message=f"Duplicate sample code '{sample_create.sample_code}' repeated in upload; skipped.",
+                        severity="warning",
+                    )
+                )
+                continue
+            seen_batch_codes.add(sample_create.sample_code)
+
             try:
                 with db.begin_nested():
-                    # Check duplicate sample_code
-                    existing = db.query(SoilSample).filter(
-                        SoilSample.sample_code == sample_create.sample_code
-                    ).first()
-                    if existing:
-                        continue
-
-                    sample = SoilSample(
-                        sample_code=sample_create.sample_code,
-                        location_id=None,
-                        sample_date=sample_create.sample_date,
-                        depth_cm=sample_create.depth_cm,
-                        land_use=sample_create.land_use,
-                        collector_name=sample_create.collector_name,
-                        notes=sample_create.notes,
-                        data_source=data_source,
-                        batch_id=batch.id,
-                    )
                     # Resolve location
+                    loc_id = None
                     if sample_create.location_name:
                         from app.repositories.location_repo import LocationRepository
                         loc_repo = LocationRepository(db)
@@ -192,22 +216,82 @@ def ingest_csv(
                             taluk_block=sample_create.taluk_block,
                             village=sample_create.village,
                         )
-                        sample.location_id = loc.id
+                        loc_id = loc.id
 
-                    db.add(sample)
-                    db.flush()
+                    # Check if sample exists in database: update if exists (prevents duplicate error)
+                    existing = (
+                        db.query(SoilSample)
+                        .filter(SoilSample.sample_code == sample_create.sample_code)
+                        .first()
+                    )
 
-                    from app.services.sample_service import _build_parameter_values
-                    _build_parameter_values(db, sample, sample_create.parameters)
-                    db.flush()
+                    if existing:
+                        sample = existing
+                        sample.location_id = loc_id or sample.location_id
+                        sample.sample_date = sample_create.sample_date
+                        sample.depth_cm = sample_create.depth_cm
+                        sample.land_use = sample_create.land_use
+                        sample.collector_name = sample_create.collector_name
+                        sample.notes = sample_create.notes
+                        sample.data_source = data_source
+                        sample.batch_id = batch.id
+                        sample.is_deleted = False
 
-                    classification_service.classify_and_store(db, sample)
-            except Exception:
-                continue
+                        # Clear and update parameters
+                        db.query(SoilParameterValue).filter(SoilParameterValue.sample_id == sample.id).delete()
+                        db.flush()
+                        _build_parameter_values(db, sample, sample_create.parameters)
+                        db.flush()
+                        classification_service.classify_and_store(db, sample)
+                        successful_count += 1
+                    else:
+                        sample = SoilSample(
+                            sample_code=sample_create.sample_code,
+                            location_id=loc_id,
+                            sample_date=sample_create.sample_date,
+                            depth_cm=sample_create.depth_cm,
+                            land_use=sample_create.land_use,
+                            collector_name=sample_create.collector_name,
+                            notes=sample_create.notes,
+                            data_source=data_source,
+                            batch_id=batch.id,
+                        )
+                        db.add(sample)
+                        db.flush()
+
+                        _build_parameter_values(db, sample, sample_create.parameters)
+                        db.flush()
+
+                        classification_service.classify_and_store(db, sample)
+                        successful_count += 1
+            except Exception as exc:
+                failed_count += 1
+                report.errors.append(
+                    ValidationIssue(
+                        row=int(idx) + 2,
+                        column="database",
+                        message=f"Database error saving '{sample_create.sample_code}': {exc}",
+                        severity="error",
+                    )
+                )
+
+    total_failed = report.error_rows + failed_count
+    batch.valid_rows = successful_count
+    batch.error_rows = total_failed
+    batch.status = "completed" if successful_count > 0 else ("failed" if total_failed > 0 or len(df) == 0 else "completed")
+    batch.validation_report = report.model_dump_json()
 
     db.commit()
     db.refresh(batch)
-    return batch, report
+
+    summary = {
+        "total_rows": len(df),
+        "successful_records": successful_count,
+        "duplicate_records": duplicate_count,
+        "failed_records": total_failed,
+    }
+
+    return batch, report, summary
 
 
 def list_batches(
@@ -228,7 +312,6 @@ def delete_batch(db: Session, batch_uuid: str) -> bool:
     batch = repo.get_by_uuid(batch_uuid)
     if batch is None:
         return False
-    # Cascade: soft-delete associated samples
     for sample in batch.samples:
         sample.is_deleted = True
     db.delete(batch)

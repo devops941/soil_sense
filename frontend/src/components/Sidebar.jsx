@@ -7,7 +7,6 @@ import {
   UploadCloud,
   BarChart3,
   FileText,
-  BookOpen,
   Sprout,
   ShieldCheck,
 } from 'lucide-react';
@@ -21,7 +20,6 @@ export default function Sidebar({ currentTab, onSelectTab, demoCount = 0 }) {
     { id: 'upload', label: 'CSV Upload', icon: UploadCloud },
     { id: 'analytics', label: 'Statistical Analytics', icon: BarChart3 },
     { id: 'reports', label: 'Reports & Exports', icon: FileText },
-    { id: 'thresholds', label: 'Thresholds Guide', icon: BookOpen },
   ];
 
   return (
